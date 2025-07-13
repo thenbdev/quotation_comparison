@@ -9,6 +9,8 @@
   "supplier",
   "item_code",
   "qty",
+  "price_list_rate",
+  "discount_percentage",
   "rate",
   "description",
   "column_break_c8nkq",
@@ -81,6 +83,20 @@
    "in_list_view": 1,
    "label": "UOM",
    "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "price_list_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "List Rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_percentage",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Discount %",
    "read_only": 1
   },
   {

@@ -116,8 +116,15 @@ def best_price_same_supplier(self):
 				best_price_item.warehouse = item.warehouse
 				best_price_item.qty = item.qty
 				best_price_item.uom = item.uom
-				best_price_item.rate = item.rate
-				best_price_item.amount = item.amount
+				# Compute tax inclusive rate and amount
+				total_tax_percent = (item.sgst_rate or 0) + (item.cgst_rate or 0) + (item.igst_rate or 0)
+				base_rate = item.rate or item.price_list_rate or 0
+				rate_inclusive = base_rate * (1 + (total_tax_percent/100))
+				best_price_item.rate = rate_inclusive
+				# Amount including tax
+				amount_inclusive = rate_inclusive * item.qty
+				best_price_item.amount = amount_inclusive
+				best_price_item.final_amount = amount_inclusive
 			self.save()
 			frappe.msgprint(_('Ordered based on Best Price from one Suppliers'), alert=True, indicator='green')
 
@@ -146,8 +153,12 @@ def best_price_many_supplier(self):
 			best_price_item.warehouse = item.warehouse
 			best_price_item.qty = item.qty
 			best_price_item.uom = item.uom
-			best_price_item.rate = item.rate
-			best_price_item.amount = item.amount
+			# Use tax-inclusive rate recomputed from price_list_rate
+			total_tax_percent = (item.sgst_rate or 0) + (item.cgst_rate or 0) + (item.igst_rate or 0)
+			best_price_item.rate = (item.rate or item.price_list_rate or 0) * (1 + total_tax_percent/100)
+			amount_inclusive = best_price_item.rate * item.qty
+			best_price_item.amount = amount_inclusive
+			best_price_item.final_amount = amount_inclusive
 		self.save()
 		frappe.msgprint(_('Ordered based on Best Price from many Suppliers'), alert=True, indicator='green')
 

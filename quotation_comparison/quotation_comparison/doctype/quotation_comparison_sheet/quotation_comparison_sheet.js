@@ -7,6 +7,7 @@ frappe.ui.form.on('Quotation Comparison Sheet', {
             frm.trigger('request_for_quotation');
         }
         set_custom_buttons(frm);
+        apply_supplier_filter(frm);
         // if compare_quotation_by is set, then show the choose_quotation_and_supplier_for_item_section and section_break_nxowt sections
         if (frm.doc.compare_quotation_by) {
             frm.toggle_display('choose_quotation_and_supplier_for_item_section', true);
@@ -32,9 +33,11 @@ frappe.ui.form.on('Quotation Comparison Sheet', {
 frappe.ui.form.on("Comparison Sheet Quotation", {
     quotations_remove(frm, cdt, cdn) {
         set_items_against_quotations(frm);
+        apply_supplier_filter(frm);
     },
     quotation(frm, cdt, cdn) {
         set_items_against_quotations(frm);
+        apply_supplier_filter(frm);
     }
 });
 
@@ -99,6 +102,7 @@ var set_quotation_against_rfq = function(frm) {
                     });
                     frm.refresh_field('quotations');
                     frm.refresh_field('quotation_items');
+                    apply_supplier_filter(frm);
                 }
             }
         });
@@ -172,8 +176,19 @@ var set_quotation_item_details = function(frm, item, quotation) {
     qtn_item.delivery_date = quotation.transaction_date;
     qtn_item.qty = item.qty;
     qtn_item.uom = item.uom;
-    qtn_item.rate = item.rate * (1+(item.sgst_rate + item.cgst_rate + item.igst_rate)/100);
-    qtn_item.amount = item.amount;
+    let sgst = item.sgst_rate || 0;
+    let cgst = item.cgst_rate || 0;
+    let igst = item.igst_rate || 0;
+    let total_tax_percent = sgst + cgst + igst;
+    const listRate = item.price_list_rate || 0;   // price before discount
+    const discRate = item.rate || listRate;   // after discount
+    const rate_inc_disc  = discRate * (1 + total_tax_percent / 100);
+    const rate_inc_nodisc = listRate * (1 + total_tax_percent / 100);
+    qtn_item.price_list_rate = listRate;
+    qtn_item.discount_percentage = listRate ? ((listRate - discRate) / listRate * 100) : 0;
+    qtn_item.rate   = rate_inc_disc;
+    qtn_item.amount = rate_inc_disc * item.qty; // amount after discount
+    qtn_item.final_amount = rate_inc_disc * item.qty;
     qtn_item.warehouse = item.warehouse;
 };
 
@@ -253,11 +268,70 @@ let fetch_quotation_items = function(frm) {
         new_item.description = item.description;
         new_item.warehouse = item.warehouse;
         new_item.qty = item.qty;
-        new_item.rate = item.rate;
+        new_item.price_list_rate = item.price_list_rate;
+        new_item.discount_percentage = item.discount_percentage;
+        new_item.rate  = item.rate;
         new_item.uom = item.uom;
-        new_item.amount = item.amount;
-        new_item.final_amount = item.amount;
+        new_item.amount = item.rate * item.qty;
+        new_item.final_amount = new_item.amount;
     });
     frm.refresh_field('items');
     frm.save();
 };
+
+// Auto-update item row when supplier is changed -------------------
+frappe.ui.form.on('Quotation Comparison Sheet Item', {
+    supplier: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (!row.item_code || !row.supplier) {return;}
+
+        // find matching quotation_items entry
+        const match = (frm.doc.quotation_items || []).find(qi =>
+            qi.item_code === row.item_code && qi.supplier === row.supplier);
+
+        if (match) {
+            // copy relevant fields
+            row.price_list_rate = match.price_list_rate;
+            row.discount_percentage = match.discount_percentage;
+            row.rate        = match.rate;
+            row.qty         = match.qty;
+            row.amount      = match.rate * row.qty;
+            row.final_amount= match.rate * row.qty;
+            row.quotation   = match.quotation;
+            row.delivery_date = match.delivery_date;
+            row.uom         = match.uom;
+            row.warehouse   = match.warehouse;
+            row.description = match.description;
+        } else {
+            frappe.throw(__('No matching quotation item found for this supplier and item code.'));
+        }
+        recompute_totals(frm);
+        frm.refresh_field('items');
+        frm.refresh_field('grand_total');
+    }
+});
+
+// Recalculate grand total based on final_amount
+function recompute_totals(frm){
+    const total = (frm.doc.items || []).reduce((acc,row)=> acc + (parseFloat(row.final_amount) || 0),0);
+    frm.doc.grand_total = total;
+}
+
+// ---- helper: keep only suppliers that gave quotations -------------
+function apply_supplier_filter(frm) {
+    if (!frm.doc || !frm.doc.quotations) return;
+
+    // build a list like ["Supplier A", "Supplier B"]
+    const supplier_list = [...new Set(
+        frm.doc.quotations.map(q => q.supplier).filter(Boolean)
+    )];
+
+    // limit drop-down in Items table
+    frm.set_query('supplier', 'items', () => {
+        return { filters: { name: ['in', supplier_list] } };
+    });
+    // limit drop-down in Quotation Items table (if needed)
+    frm.set_query('supplier', 'quotation_items', () => {
+        return { filters: { name: ['in', supplier_list] } };
+    });
+}

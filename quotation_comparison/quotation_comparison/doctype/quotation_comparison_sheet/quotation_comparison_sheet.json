@@ -21,7 +21,8 @@
   "amended_from",
   "quotations_section",
   "quotations",
-  "quotation_items"
+  "quotation_items",
+  "additional_remarks"
  ],
  "fields": [
   {
@@ -61,7 +62,7 @@
   {
    "fieldname": "quotation_items",
    "fieldtype": "Table",
-   "label": "Quotation Items",
+   "label": "All Quotation Items",
    "options": "Comparison Sheet Quotation Item",
    "read_only": 1
   },
@@ -74,7 +75,7 @@
   {
    "fieldname": "items",
    "fieldtype": "Table",
-   "label": "Items",
+   "label": "Proposed Items",
    "options": "Quotation Comparison Sheet Item"
   },
   {
@@ -127,6 +128,11 @@
    "remember_last_selected_value": 1,
    "reqd": 1,
    "set_only_once": 1
+  },
+  {
+   "fieldname": "additional_remarks",
+   "fieldtype": "Long Text",
+   "label": "Additional Remarks"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -183,6 +189,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
