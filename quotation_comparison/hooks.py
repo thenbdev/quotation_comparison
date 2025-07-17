@@ -7,8 +7,17 @@ app_description = "Quotation Comparison Tool for ERPNext"
 app_email = "info@efeone.com"
 app_license = "MIT"
 
+
 # Includes in <head>
 # ------------------
+
+# Fixtures
+fixtures = [{
+    "dt": "Print Format",
+    "filters": [
+        ["name", "=", "Quotation Comparison"]
+    ]
+}]
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/quotation_comparison/css/quotation_comparison.css"
